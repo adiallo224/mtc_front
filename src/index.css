@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Poppins', sans-serif;
+    background-color: #F8F9FA; /* background-light */
+    color: #1F2937; /* text-gray-800 */
+  }
+  
+  .dark body {
+    background-color: #152211; /* background-dark */
+    color: #E5E7EB; /* text-gray-200 */
+  }
+}
+
+.stepper-line {
+  height: 2px;
+  flex-grow: 1;
+  background-color: #D1D5DB;
+}
+
+.dark .stepper-line {
+  background-color: #4B5563;
+}

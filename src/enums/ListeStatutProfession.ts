@@ -1,0 +1,25 @@
+export const ListeStatutProfession = {
+    FONCTIONNAIRE : 'Fonctionnaire',
+    AUCUN_SECTEUR_ACTIVITE : 'Aucun secteur d\'activité spécifique',
+    AGENT_SECURITE : 'Agent de sécurité',
+    ARMEE : 'Armée',
+    ARTISTE : 'Artiste',
+    BUCHERON_DEBARDEUR : 'Bûcheron, débardeur',
+    CASCADEUR : 'Cascadeur',
+    FORAIN : 'Forain',
+    FORCE_ORDRE_POMPIER : 'Forces de l\'ordre, Pompier',
+    GUIDE_MONTAGNE_MONITEUR_SKI : 'Guide de haute montagne et moniteur de ski',
+    JOURNALISTE_CAM_PHOTO : 'Journaliste, cameraman, photographe avec déplacement',
+    MARIN_PECHEUR : 'Marin, Marin pêcheur, équipage, docker, arrimeur',
+    MEMBRE_ONG : 'Membre d\'ONG avec déplacement',
+    MONTEUR_ELEC_HAUTE_TENSION : 'Monteur - électricien haute tension',
+    PILOTE_PERSONNEL_NAVIGANT : 'Pilote et personnel navigant',
+    POLITIQUE_CONNUE : 'Politique (personnalités connues)',
+    PROFESSION_AVEC_PORT_ARME : 'Profession avec port, utilisation d\'arme (hors forces de l\'ordre et militaire)',
+    PROFESSION_FORAGE_PLONGE : 'Profession avec travaux > 20 m ou travaux souterrains, forage ou plongées',
+    PROFESSION_PRODUIT_DANGEREUX : 'Profession avec usage de produits dangereux, toxiques, inflammables, explosifs, nucléaires',
+    PROFESSION_PARANORMAUX : 'Profession basée sur l\'existence de phénomènes paranormaux',
+    PROFESSION_AIMAUX_DANGEREUX : 'Profession en contact avec des animaux dangereux',
+    SPORTIF_PROFESSIONNEL : 'Sportif professionnel'
+};
+

@@ -1,0 +1,25 @@
+export const ListeFournisseurs = {
+    AFIESCA : 'Afiesca',
+    ALPTIS : 'Alptis',
+    AMI3F : 'Ami3f',
+    APICIL : 'Apicil',
+    APIVIA : 'Apivia',
+    APRIL : 'April',
+    ASSUREA : 'Assurea',
+    DIGITALINSURE : 'DigitalInsure',
+    ECA : 'Eca',
+    ENTORIA : 'Entoria',
+    FFA : 'Ffa',
+    HARMONIE : 'Harmonie',
+    HENNER : 'Henner',
+    LOOMA : 'Looma',
+    LIFESQUARE : 'LifeSquare',
+    METLIFE : 'MetLife',
+    REPAM : 'Repam',
+    QUATREM : 'Quatrem',
+    SMISO : 'Smiso',
+    SIMULASSUR : 'Simulassur',
+    SWLIFE : 'Swlife',
+    UTWIN : 'Utwin'
+};
+
