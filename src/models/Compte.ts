@@ -8,5 +8,6 @@ export interface Compte {
   actif: boolean;
   source: string;
   niveau?: number;
+  ordre?: number | null;
 }
 

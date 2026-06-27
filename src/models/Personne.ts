@@ -6,7 +6,7 @@ export interface Personne {
   date_naissance: string;
   email: string;
   telephone: string;
-  numero_voie: undefined;
+  numero_voie?: number;
   nom_voie: string;
   code_postal: string;
   ville: string;

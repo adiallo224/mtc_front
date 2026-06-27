@@ -163,59 +163,127 @@ export default function Search() {
     const savedFlux = localStorage.getItem('fluxRecherche');
     if (savedFlux) {
       try {
-        const flux: Flux = JSON.parse(savedFlux);
-        
-        // Remplir les formulaires avec le flux sauvegardé
-        if (flux.type_assurance) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const flux: any = JSON.parse(savedFlux);
+
+        // Le backend renvoie camelCase ; on accepte les deux conventions (camel ET snake)
+        const rawTA = flux.typeAssurance ?? flux.type_assurance;
+        if (rawTA) {
+          // Utiliser l'enum typeAssurance comme source de vérité (les booléens DB peuvent être incohérents)
+          const typeStr: string = rawTA.typeAssurance || rawTA.type_assurance || '';
           typeAssuranceForm.reset({
-            assu_pret: flux.type_assurance.assu_pret || false,
-            assu_auto: flux.type_assurance.assu_auto || false,
-            assu_mutuel_indiv: flux.type_assurance.assu_mutuel_indiv || false,
-            assu_mutuel_pro: flux.type_assurance.assu_mutuel_pro || false
+            assu_pret:         typeStr === 'PRET',
+            assu_auto:         typeStr === 'AUTO',
+            assu_mutuel_indiv: typeStr === 'MUTUELLE_INDIV',
+            assu_mutuel_pro:   typeStr === 'MUTUELLE_PRO'
           });
         }
-        
-        if (flux.personnes && flux.personnes.length > 0) {
-          // Convertir les dates pour les champs input de type date
-          const personnesWithConvertedDates = flux.personnes.map(personne => ({
-            ...personne,
-            date_naissance: convertDateToInputFormat(personne.date_naissance)
+
+        const rawPersonnes = flux.personnes ?? [];
+        if (rawPersonnes.length > 0) {
+          const personnesNorm = rawPersonnes.map((p) => ({
+            civilite:            p.civilite            || '',
+            nom:                 p.nom                 || '',
+            prenom:              p.prenom              || '',
+            date_naissance:      convertDateToInputFormat(p.date_naissance || p.dateNaissance || ''),
+            email:               p.email               || '',
+            telephone:           p.telephone           || '',
+            numero_voie:         p.numero_voie         != null ? Number(p.numero_voie)
+                                 : p.numeroVoie        != null ? Number(p.numeroVoie) : undefined,
+            nom_voie:            p.nom_voie            || p.nomVoie            || '',
+            code_postal:         p.code_postal         || p.codePostal         || '',
+            ville:               p.ville               || '',
+            pays:                p.pays                || ListePays.France,
+            regime:              p.regime              || '',
+            nationalite:         p.nationalite         || Nationalite.France,
+            statut_profession:   p.statut_profession   || p.statutProfession   || '',
+            profession_specifique: p.profession_specifique || p.professionSpecifique || '',
+            profession:          p.profession          || ''
           }));
-          assureForm.reset({ assures: personnesWithConvertedDates });
-          // Synchroniser avec infoAssureCompletForm si nécessaire
-          if (flux.info_assure_complets && flux.info_assure_complets.length > 0) {
-            infoAssureCompletForm.reset({ personnesInfosComplements: flux.info_assure_complets });
-          }
+          assureForm.reset({ assures: personnesNorm });
+
+          // Synchroniser professionValues pour que le <select> contrôlé affiche la bonne valeur
+          const profVals: Record<number, string> = {};
+          personnesNorm.forEach((p, i) => { if (p.profession) profVals[i] = p.profession; });
+          if (Object.keys(profVals).length > 0) setProfessionValues(profVals);
         }
-        
-        if (flux.enfants && flux.enfants.length > 0) {
-          // Convertir les dates pour les champs input de type date
-          const enfantsWithConvertedDates = flux.enfants.map(enfant => ({
-            ...enfant,
-            date_naissance: convertDateToInputFormat(enfant.date_naissance)
-          }));
-          infoFamilleForm.reset({ enfants: enfantsWithConvertedDates });
+
+        const rawIAC = flux.infoAssureComplets ?? flux.info_assure_complets ?? [];
+        if (rawIAC.length > 0) {
+          infoAssureCompletForm.reset({
+            personnesInfosComplements: rawIAC.map((iac) => ({
+              travail_manuel:             iac.travailManuel            ?? iac.travail_manuel            ?? false,
+              travail_hauteur:            iac.travailHauteur           ?? iac.travail_hauteur           ?? false,
+              travail_manuel_manu_lourde: iac.travailManuelManuLourde  ?? iac.travail_manuel_manu_lourde ?? false,
+              produit_danger:             iac.produitDanger            ?? iac.produit_danger            ?? false,
+              metier_expose:              iac.metierExpose             ?? iac.metier_expose             ?? false,
+              sport_risque:               iac.sportRisque              ?? iac.sport_risque              ?? false,
+              fumeur:                     iac.fumeur                   ?? false,
+              fumeur_elec_nico:           iac.fumeurElecNico           ?? iac.fumeur_elec_nico          ?? false,
+              fumeur_sans_nico:           iac.fumeurSansNico           ?? iac.fumeur_sans_nico          ?? false,
+              deplacement_pro_20000:      iac.deplacementPro20000      ?? iac.deplacement_pro_20000     ?? false,
+              deplacement_etranger_60:    iac.deplacementEtranger60    ?? iac.deplacement_etranger_60   ?? false,
+              deplacement_pays_risque:    iac.deplacementPaysRisque    ?? iac.deplacement_pays_risque   ?? false,
+              instrument_precis:          iac.instrumentPrecis         ?? iac.instrument_precis         ?? false,
+              garantie:                   iac.garantie                 || Garantie.IPTITTIPP,
+              quotite_deces:              iac.quotiteDeces             || iac.quotite_deces             || '100',
+              quotite:                    iac.quotite                  || '',
+              garantie_chomage:           iac.garantieChomage          ?? iac.garantie_chomage          ?? false,
+              hauteur:                    iac.hauteur                  || ''
+            }))
+          });
         }
-        
-        if (flux.entreprise) {
-          // Convertir la date de création de l'entreprise
-          const entrepriseWithConvertedDate = {
-            ...flux.entreprise,
-            date_creation_entreprise: convertDateToInputFormat(flux.entreprise.date_creation_entreprise)
-          };
-          entrepriseForm.reset(entrepriseWithConvertedDate);
+
+        const rawEnfants = flux.enfants ?? [];
+        if (rawEnfants.length > 0) {
+          infoFamilleForm.reset({
+            enfants: rawEnfants.map((e) => ({
+              civilite:       e.civilite       || '',
+              nom:            e.nom            || '',
+              prenom:         e.prenom         || '',
+              date_naissance: convertDateToInputFormat(e.date_naissance || e.dateNaissance || '')
+            }))
+          });
         }
-        
-        if (flux.prets && flux.prets.length > 0) {
-          // Convertir les dates d'effet des prêts
-          const pretsWithConvertedDates = flux.prets.map(pret => ({
-            ...pret,
-            date_effet: convertDateToInputFormat(pret.date_effet)
-          }));
-          pretForm.reset({ prets: pretsWithConvertedDates });
+
+        const rawEnt = flux.entreprise;
+        if (rawEnt) {
+          entrepriseForm.reset({
+            siret:                    rawEnt.siret                    || '',
+            nom_entreprise:           rawEnt.nom_entreprise           || rawEnt.nomEntreprise           || '',
+            date_creation_entreprise: convertDateToInputFormat(rawEnt.date_creation_entreprise || rawEnt.dateCreationEntreprise || ''),
+            code_ape:                 rawEnt.code_ape                 || rawEnt.codeApe                 || rawEnt.codeAPE || '',
+            telephone:                rawEnt.telephone                || '',
+            numero_voie_entreprise:   rawEnt.numero_voie_entreprise   != null ? rawEnt.numero_voie_entreprise
+                                      : rawEnt.numeroVoieEntreprise   != null ? rawEnt.numeroVoieEntreprise : undefined,
+            nom_voie_entreprise:      rawEnt.nom_voie_entreprise      || rawEnt.nomVoieEntreprise      || '',
+            code_postal_entreprise:   rawEnt.code_postal_entreprise   || rawEnt.codePostalEntreprise   || '',
+            ville_entreprise:         rawEnt.ville_entreprise         || rawEnt.villeEntreprise         || '',
+            pays_entreprise:          rawEnt.pays_entreprise          || rawEnt.paysEntreprise          || ListePays.France
+          });
         }
-        
-        // Nettoyer le localStorage après chargement
+
+        const rawPrets = flux.prets ?? [];
+        if (rawPrets.length > 0) {
+          pretForm.reset({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            prets: rawPrets.map((p: any) => ({
+              nouveau_ou_reprise: p.nouveau_ou_reprise || p.nouveauOuReprise || OptionsPret.NOUVEAU,
+              objet:              p.objet              || ObjetPret.RESI_PRINCIPALE,
+              banque:             p.banque             || '',
+              type:               p.type               || TypePret.IMMO_AMORTISSABLE,
+              montant_pret:       p.montant_pret       || p.montantPret       || '',
+              duree:              p.duree              || '',
+              differe:            p.differe            || TypeDiffere.PASDEDIFFERE,
+              duree_differe:      p.duree_differe      || p.dureeDiffere      || '0',
+              type_taux:          p.type_taux          || p.typeTaux          || TypeTaux.FIXE,
+              taux:               p.taux               || '',
+              date_effet:         convertDateToInputFormat(p.date_effet || p.dateEffet || ''),
+              duree_amort:        p.duree_amort        || p.dureeAmort        || ''
+            }))
+          });
+        }
+
         localStorage.removeItem('fluxRecherche');
       } catch (error) {
         console.error('Erreur lors du chargement du flux:', error);
@@ -300,6 +368,55 @@ export default function Search() {
       }
     }
   }, [assures.length, personnesInfosComplements.length, addInfoAssureComplet, removeInfoAssureComplet]);
+
+  // --- Visibilité des étapes selon le type d'assurance sélectionné ---
+  const typeAssuranceValues = typeAssuranceForm.watch();
+  const selectedType = typeAssuranceValues.assu_pret        ? 'PRET'
+    : typeAssuranceValues.assu_auto         ? 'AUTO'
+    : typeAssuranceValues.assu_mutuel_indiv ? 'MUTUELLE_INDIV'
+    : typeAssuranceValues.assu_mutuel_pro   ? 'MUTUELLE_PRO'
+    : null;
+
+  const hiddenStepRefsByType: Record<string, string[]> = {
+    MUTUELLE_INDIV: ['infoEnt', 'prets', 'infoAssu'],
+    MUTUELLE_PRO:   ['prets', 'infoAssu'],
+    PRET:           ['infoEnt', 'infoFam'],
+    AUTO:           []
+  };
+  const hiddenStepRefs  = selectedType ? (hiddenStepRefsByType[selectedType] ?? []) : [];
+  const visibleStepList = stepList.filter(s => !hiddenStepRefs.includes(s.stepRef));
+
+  const goToNextStep = () => {
+    const idx = visibleStepList.findIndex(s => s.stepRef === activeStep.stepRef);
+    if (idx >= 0 && idx < visibleStepList.length - 1) setActiveStep(visibleStepList[idx + 1]);
+  };
+  const goToPrevStep = () => {
+    const idx = visibleStepList.findIndex(s => s.stepRef === activeStep.stepRef);
+    if (idx > 0) setActiveStep(visibleStepList[idx - 1]);
+  };
+  const isLastBeforeResultat = (ref: string): boolean => {
+    const nonResultat = visibleStepList.filter(s => s.stepRef !== 'resultat');
+    return nonResultat.length > 0 && nonResultat[nonResultat.length - 1].stepRef === ref;
+  };
+
+  const handleTypeAssuranceChange = (
+    field: 'assu_pret' | 'assu_auto' | 'assu_mutuel_indiv' | 'assu_mutuel_pro',
+    checked: boolean
+  ) => {
+    typeAssuranceForm.setValue('assu_pret', false);
+    typeAssuranceForm.setValue('assu_auto', false);
+    typeAssuranceForm.setValue('assu_mutuel_indiv', false);
+    typeAssuranceForm.setValue('assu_mutuel_pro', false);
+    if (checked) typeAssuranceForm.setValue(field, true);
+  };
+
+  // Si le type change et que l'étape courante devient masquée, revenir à infoPers
+  useEffect(() => {
+    if (hiddenStepRefs.includes(activeStep.stepRef)) {
+      setActiveStep(stepList[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedType]);
 
   const gotoStep = (stepIndex: number) => {
     setActiveStep(stepList[stepIndex]);
@@ -405,100 +522,80 @@ export default function Search() {
       {/* Type Assurance Selection */}
       <section className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm">
         <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-3">Type d'assurance</h2>
-        <form>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <label className="flex items-center space-x-3 cursor-pointer">
-              <input
-                {...typeAssuranceForm.register('assu_pret')}
-                type="checkbox"
-                className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary dark:bg-gray-700 dark:border-gray-600"
-              />
-              <span className="text-gray-700 dark:text-gray-300">Prêt</span>
-            </label>
-            <label className="flex items-center space-x-3 cursor-pointer">
-              <input
-                {...typeAssuranceForm.register('assu_auto')}
-                type="checkbox"
-                className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary dark:bg-gray-700 dark:border-gray-600"
-              />
-              <span className="text-gray-700 dark:text-gray-300">Auto</span>
-            </label>
-            <label className="flex items-center space-x-3 cursor-pointer">
-              <input
-                {...typeAssuranceForm.register('assu_mutuel_indiv')}
-                type="checkbox"
-                className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary dark:bg-gray-700 dark:border-gray-600"
-              />
-              <span className="text-gray-700 dark:text-gray-300">Mutuelle individuelle</span>
-            </label>
-            <label className="flex items-center space-x-3 cursor-pointer">
-              <input
-                {...typeAssuranceForm.register('assu_mutuel_pro')}
-                type="checkbox"
-                className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary dark:bg-gray-700 dark:border-gray-600"
-              />
-              <span className="text-gray-700 dark:text-gray-300">Mutuelle Pro</span>
-            </label>
-          </div>
-        </form>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          {([
+            { field: 'assu_mutuel_indiv', label: 'Mutuelle individuelle' },
+            { field: 'assu_mutuel_pro',   label: 'Mutuelle Pro' },
+            { field: 'assu_auto',         label: 'Auto' },
+            { field: 'assu_pret',         label: 'Prêt' }
+          ] as const).map(({ field, label }) => {
+            const isChecked  = typeAssuranceValues[field] ?? false;
+            const isDisabled = !!selectedType && !isChecked;
+            return (
+              <label
+                key={field}
+                className={`flex items-center space-x-3 ${isDisabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={isChecked}
+                  disabled={isDisabled}
+                  onChange={(e) => handleTypeAssuranceChange(field, e.target.checked)}
+                  className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary dark:bg-gray-700 dark:border-gray-600 disabled:cursor-not-allowed"
+                />
+                <span className={isDisabled ? 'text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-300'}>
+                  {label}
+                </span>
+              </label>
+            );
+          })}
+        </div>
       </section>
 
       {/* Stepper */}
       <div className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm">
         <div className="w-full overflow-x-auto">
           <div className="flex items-center justify-between min-w-[700px] py-2">
-            {stepList.map((step, index) => (
-              <div key={step.stepId} className="flex items-center flex-1">
-                <div className="flex flex-col items-center text-center w-36">
-                  <div
-                    onClick={() => gotoStep(index)}
-                    className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg mb-2 cursor-pointer transition-all duration-300 ${
-                      activeStep.stepId === step.stepId
-                        ? 'bg-red-600 text-white shadow-lg scale-110'
-                        : activeStep.stepId > step.stepId
-                        ? 'bg-green-500 text-white'
+            {visibleStepList.map((step, visIdx) => {
+              const activeVisIdx = visibleStepList.findIndex(s => s.stepRef === activeStep.stepRef);
+              const isActive = step.stepRef === activeStep.stepRef;
+              const isPast   = visIdx < activeVisIdx;
+              return (
+                <div key={step.stepId} className="flex items-center flex-1">
+                  <div className="flex flex-col items-center text-center w-36">
+                    <div
+                      onClick={() => setActiveStep(step)}
+                      className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg mb-2 cursor-pointer transition-all duration-300 ${
+                        isActive ? 'bg-red-600 text-white shadow-lg scale-110'
+                        : isPast  ? 'bg-green-500 text-white'
                         : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
-                    }`}
-                  >
-                    {step.stepId}
-                  </div>
-                  <span
-                    className={`font-semibold text-sm ${
-                      activeStep.stepId === step.stepId
-                        ? 'text-red-600 dark:text-red-400'
-                        : activeStep.stepId > step.stepId
-                        ? 'text-green-600 dark:text-green-400'
-                        : 'text-gray-500 dark:text-gray-400'
-                    }`}
-                  >
-                    {step.stepName}
-                  </span>
-                </div>
-                {index < stepList.length - 1 && (
-                  <div className="flex-1 mx-2 relative">
-                    <div className="h-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full transition-all duration-500 ${
-                          activeStep.stepId > step.stepId
-                            ? 'bg-green-500 w-full'
-                            : activeStep.stepId === step.stepId
-                            ? 'bg-red-600 w-1/2'
-                            : 'bg-gray-200 dark:bg-gray-700 w-0'
-                        }`}
-                        style={{
-                          width:
-                            activeStep.stepId > step.stepId
-                              ? '100%'
-                              : activeStep.stepId === step.stepId
-                              ? '50%'
-                              : '0%'
-                        }}
-                      />
+                      }`}
+                    >
+                      {visIdx + 1}
                     </div>
+                    <span className={`font-semibold text-sm ${
+                      isActive ? 'text-red-600 dark:text-red-400'
+                      : isPast  ? 'text-green-600 dark:text-green-400'
+                      : 'text-gray-500 dark:text-gray-400'
+                    }`}>
+                      {step.stepName}
+                    </span>
                   </div>
-                )}
-              </div>
-            ))}
+                  {visIdx < visibleStepList.length - 1 && (
+                    <div className="flex-1 mx-2 relative">
+                      <div className="h-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full transition-all duration-500 ${
+                            isPast ? 'bg-green-500' : isActive ? 'bg-red-600' : 'bg-gray-200 dark:bg-gray-700'
+                          }`}
+                          style={{ width: isPast ? '100%' : isActive ? '50%' : '0%' }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
         
@@ -509,14 +606,20 @@ export default function Search() {
               Progression
             </span>
             <span className="text-sm font-semibold text-red-600 dark:text-red-400">
-              {Math.round(((activeStep.stepId - 1) / (stepList.length - 1)) * 100)}%
+              {(() => {
+                const i = visibleStepList.findIndex(s => s.stepRef === activeStep.stepRef);
+                return Math.round((Math.max(i, 0) / (visibleStepList.length - 1)) * 100);
+              })()}%
             </span>
           </div>
           <div className="w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
             <div
               className="h-full bg-gradient-to-r from-red-500 to-red-600 transition-all duration-500 ease-out rounded-full"
               style={{
-                width: `${((activeStep.stepId - 1) / (stepList.length - 1)) * 100}%`
+                width: `${(() => {
+                  const i = visibleStepList.findIndex(s => s.stepRef === activeStep.stepRef);
+                  return Math.round((Math.max(i, 0) / (visibleStepList.length - 1)) * 100);
+                })()}%`
               }}
             />
           </div>
@@ -899,14 +1002,19 @@ export default function Search() {
           ))}
 
           <div className="mt-8 pt-6 flex justify-end">
-            <button
-              onClick={() => gotoStep(1)}
-              className="bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 transition-all duration-200 flex items-center space-x-2"
-              type="button"
-            >
-              <span>Étape suivante</span>
-              <span className="material-icons-outlined">arrow_forward</span>
-            </button>
+            {isLastBeforeResultat('infoPers') ? (
+              <button onClick={rechercher} disabled={loading} type="button"
+                className="bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 transition-all duration-200 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                <span>Rechercher</span>
+                <span className="material-icons-outlined">search</span>
+              </button>
+            ) : (
+              <button onClick={goToNextStep} type="button"
+                className="bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 transition-all duration-200 flex items-center space-x-2">
+                <span>Étape suivante</span>
+                <span className="material-icons-outlined">arrow_forward</span>
+              </button>
+            )}
           </div>
         </section>
       )}
@@ -1064,22 +1172,24 @@ export default function Search() {
           </div>
 
           <div className="mt-8 pt-6 flex justify-between">
-            <button
-              onClick={() => gotoStep(0)}
-              className="bg-gray-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 dark:focus:ring-offset-gray-800 transition-all duration-200 flex items-center space-x-2"
-              type="button"
-            >
+            <button onClick={goToPrevStep} type="button"
+              className="bg-gray-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 dark:focus:ring-offset-gray-800 transition-all duration-200 flex items-center space-x-2">
               <span className="material-icons-outlined">arrow_back</span>
               <span>Précédent</span>
             </button>
-            <button
-              onClick={() => gotoStep(2)}
-              className="bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 transition-all duration-200 flex items-center space-x-2"
-              type="button"
-            >
-              <span>Étape suivante</span>
-              <span className="material-icons-outlined">arrow_forward</span>
-            </button>
+            {isLastBeforeResultat('infoEnt') ? (
+              <button onClick={rechercher} disabled={loading} type="button"
+                className="bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 transition-all duration-200 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                <span>Rechercher</span>
+                <span className="material-icons-outlined">search</span>
+              </button>
+            ) : (
+              <button onClick={goToNextStep} type="button"
+                className="bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 transition-all duration-200 flex items-center space-x-2">
+                <span>Étape suivante</span>
+                <span className="material-icons-outlined">arrow_forward</span>
+              </button>
+            )}
           </div>
         </section>
       )}
@@ -1178,22 +1288,24 @@ export default function Search() {
           ))}
 
           <div className="mt-8 pt-6 flex justify-between">
-            <button
-              onClick={() => gotoStep(1)}
-              className="bg-gray-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 dark:focus:ring-offset-gray-800 transition-all duration-200 flex items-center space-x-2"
-              type="button"
-            >
+            <button onClick={goToPrevStep} type="button"
+              className="bg-gray-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 dark:focus:ring-offset-gray-800 transition-all duration-200 flex items-center space-x-2">
               <span className="material-icons-outlined">arrow_back</span>
               <span>Précédent</span>
             </button>
-            <button
-              onClick={() => gotoStep(3)}
-              className="bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 transition-all duration-200 flex items-center space-x-2"
-              type="button"
-            >
-              <span>Étape suivante</span>
-              <span className="material-icons-outlined">arrow_forward</span>
-            </button>
+            {isLastBeforeResultat('infoFam') ? (
+              <button onClick={rechercher} disabled={loading} type="button"
+                className="bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 transition-all duration-200 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                <span>Rechercher</span>
+                <span className="material-icons-outlined">search</span>
+              </button>
+            ) : (
+              <button onClick={goToNextStep} type="button"
+                className="bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 transition-all duration-200 flex items-center space-x-2">
+                <span>Étape suivante</span>
+                <span className="material-icons-outlined">arrow_forward</span>
+              </button>
+            )}
           </div>
         </section>
       )}
@@ -1488,22 +1600,24 @@ export default function Search() {
           ))}
 
           <div className="mt-8 pt-6 flex justify-between">
-            <button
-              onClick={() => gotoStep(2)}
-              className="bg-gray-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 dark:focus:ring-offset-gray-800 transition-all duration-200 flex items-center space-x-2"
-              type="button"
-            >
+            <button onClick={goToPrevStep} type="button"
+              className="bg-gray-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 dark:focus:ring-offset-gray-800 transition-all duration-200 flex items-center space-x-2">
               <span className="material-icons-outlined">arrow_back</span>
               <span>Précédent</span>
             </button>
-            <button
-              onClick={() => gotoStep(4)}
-              className="bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 transition-all duration-200 flex items-center space-x-2"
-              type="button"
-            >
-              <span>Étape suivante</span>
-              <span className="material-icons-outlined">arrow_forward</span>
-            </button>
+            {isLastBeforeResultat('prets') ? (
+              <button onClick={rechercher} disabled={loading} type="button"
+                className="bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 transition-all duration-200 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                <span>Rechercher</span>
+                <span className="material-icons-outlined">search</span>
+              </button>
+            ) : (
+              <button onClick={goToNextStep} type="button"
+                className="bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 transition-all duration-200 flex items-center space-x-2">
+                <span>Étape suivante</span>
+                <span className="material-icons-outlined">arrow_forward</span>
+              </button>
+            )}
           </div>
         </section>
       )}
@@ -1759,20 +1873,13 @@ export default function Search() {
           })}
 
           <div className="mt-8 pt-6 flex justify-between">
-            <button
-              onClick={() => gotoStep(3)}
-              className="bg-gray-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 dark:focus:ring-offset-gray-800 transition-all duration-200 flex items-center space-x-2"
-              type="button"
-            >
+            <button onClick={goToPrevStep} type="button"
+              className="bg-gray-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 dark:focus:ring-offset-gray-800 transition-all duration-200 flex items-center space-x-2">
               <span className="material-icons-outlined">arrow_back</span>
               <span>Précédent</span>
             </button>
-            <button
-              onClick={rechercher}
-              disabled={loading}
-              className="bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 transition-all duration-200 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              type="button"
-            >
+            <button onClick={rechercher} disabled={loading} type="button"
+              className="bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 transition-all duration-200 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed">
               <span>Rechercher</span>
               <span className="material-icons-outlined">search</span>
             </button>

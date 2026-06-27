@@ -13,6 +13,7 @@ interface CompteFormData {
   typeAssure: string;
   actif: boolean;
   niveau: number | null;
+  ordre: number | null;
 }
 
 export default function Parametrage() {
@@ -26,6 +27,7 @@ export default function Parametrage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [showPassword, setShowPassword] = useState(false);
+  const [ordreError, setOrdreError] = useState<string | null>(null);
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<CompteFormData>({
     defaultValues: {
@@ -35,7 +37,8 @@ export default function Parametrage() {
       fournisseur: '',
       typeAssure: '',
       actif: true,
-      niveau: null
+      niveau: null,
+      ordre: null
     }
   });
 
@@ -95,6 +98,7 @@ export default function Parametrage() {
   const openSide = (visible: boolean) => {
     setIsVisibleSide(visible);
     setMode('Ajouter');
+    setOrdreError(null);
     reset({
       identifiant: '',
       pwd: '',
@@ -102,13 +106,15 @@ export default function Parametrage() {
       fournisseur: '',
       typeAssure: '',
       actif: true,
-      niveau: null
+      niveau: null,
+      ordre: null
     });
     setCurrentCompte(null);
   };
 
   const closeSide = () => {
     setIsVisibleSide(false);
+    setOrdreError(null);
     reset();
     setCurrentCompte(null);
   };
@@ -117,6 +123,7 @@ export default function Parametrage() {
     setCurrentCompte(compte);
     setIsVisibleSide(true);
     setMode('Modifier');
+    setOrdreError(null);
     reset({
       identifiant: compte.username,
       pwd: compte.password,
@@ -124,11 +131,13 @@ export default function Parametrage() {
       fournisseur: compte.nomFournisseur,
       typeAssure: compte.typeAssurance,
       actif: compte.actif,
-      niveau: compte.niveau ?? null
+      niveau: compte.niveau ?? null,
+      ordre: compte.ordre ?? null
     });
   };
 
   const onSubmit = async (data: CompteFormData) => {
+    setOrdreError(null);
     try {
       let sourcePart = '';
       if (data.typeAssure === 'PRET') {
@@ -141,7 +150,7 @@ export default function Parametrage() {
         sourcePart = 'Auto';
       }
 
-      const nomFournisseur = mode === 'Ajouter' 
+      const nomFournisseur = mode === 'Ajouter'
         ? `${data.fournisseur}_${sourcePart}`
         : data.fournisseur;
 
@@ -153,7 +162,8 @@ export default function Parametrage() {
         typeAssurance: data.typeAssure,
         actif: mode === 'Ajouter' ? true : data.actif,
         source: `${data.fournisseur}${sourcePart}`,
-        niveau: data.niveau ?? undefined
+        niveau: data.niveau ?? undefined,
+        ordre: data.ordre ?? null
       };
 
       if (mode === 'Ajouter') {
@@ -164,8 +174,18 @@ export default function Parametrage() {
 
       await getAllComptes();
       closeSide();
-    } catch (error) {
-      console.error('Erreur lors de l\'enregistrement:', error);
+    } catch (error: unknown) {
+      if (
+        error &&
+        typeof error === 'object' &&
+        'response' in error &&
+        (error as { response?: { status?: number; data?: { message?: string } } }).response?.status === 409
+      ) {
+        const errResp = (error as { response: { data?: { message?: string } } }).response;
+        setOrdreError(errResp.data?.message ?? "Cet ordre est déjà utilisé pour ce type d'assurance.");
+      } else {
+        console.error("Erreur lors de l'enregistrement:", error);
+      }
     }
   };
 
@@ -277,6 +297,7 @@ export default function Parametrage() {
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">URL Fournisseur</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Type Assurance</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Niveau</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Ordre</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Statut</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
                         </tr>
@@ -284,7 +305,7 @@ export default function Parametrage() {
                       <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                         {filteredComptes.length === 0 ? (
                           <tr>
-                            <td colSpan={9} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                            <td colSpan={10} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
                               Aucun compte trouvé.
                             </td>
                           </tr>
@@ -308,6 +329,9 @@ export default function Parametrage() {
                               <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">{compte.typeAssurance}</td>
                               <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                                 {compte.niveau !== null && compte.niveau !== undefined ? compte.niveau : '-'}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                                {compte.ordre !== null && compte.ordre !== undefined ? compte.ordre : '-'}
                               </td>
                               <td className="px-4 py-3 whitespace-nowrap text-sm">
                                 <div className="flex items-center justify-center">
@@ -507,6 +531,32 @@ export default function Parametrage() {
                     />
                     {errors.niveau && (
                       <p className="text-red-500 text-xs mt-1">{errors.niveau.message}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Ordre de lancement
+                    </label>
+                    <input
+                      {...register('ordre', {
+                        min: { value: 1, message: 'La valeur minimum est 1' }
+                      })}
+                      type="number"
+                      min="1"
+                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:border-gray-600 ${
+                        errors.ordre || ordreError ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="Ordre de lancement (1, 2, 3…)"
+                    />
+                    <p className="text-gray-500 text-xs mt-1">
+                      Unique par type d'assurance. Les services actifs sont lancés du plus petit au plus grand.
+                    </p>
+                    {errors.ordre && (
+                      <p className="text-red-500 text-xs mt-1">{errors.ordre.message}</p>
+                    )}
+                    {ordreError && (
+                      <p className="text-red-500 text-xs mt-1">{ordreError}</p>
                     )}
                   </div>
 

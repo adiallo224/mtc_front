@@ -38,11 +38,15 @@ export default function HistoriqueDemande() {
         console.log('FluxData:', fluxDataList);
         // Transformer les données de l'API en format HistoriqueItem
         const historiqueItems: HistoriqueItem[] = fluxDataList.map((fluxData) => {
-          const type_assurance = fluxData.type_assurance?.type_assurance ||
-            (fluxData.type_assurance?.assu_pret ? 'PRET' :
-             fluxData.type_assurance?.assu_auto ? 'AUTO' :
-             fluxData.type_assurance?.assu_mutuel_indiv ? 'MUTUELLE_INDIV' :
-             fluxData.type_assurance?.assu_mutuel_pro ? 'MUTUELLE_PRO' : 'NON_DEFINI');
+          // Le backend renvoie typeAssurance (camelCase) mais le modèle TS attend type_assurance (snake_case)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const rawTA = (fluxData as any).typeAssurance ?? fluxData.type_assurance;
+          const type_assurance =
+            rawTA?.typeAssurance || rawTA?.type_assurance ||
+            (rawTA?.assuPret || rawTA?.assu_pret ? 'PRET' :
+             rawTA?.assuAuto || rawTA?.assu_auto ? 'AUTO' :
+             rawTA?.assuMutuelIndiv || rawTA?.assu_mutuel_indiv ? 'MUTUELLE_INDIV' :
+             rawTA?.assuMutuelPro || rawTA?.assu_mutuel_pro ? 'MUTUELLE_PRO' : 'NON_DEFINI');
           
           const personnePrincipale = fluxData.personnes && fluxData.personnes.length > 0
             ? `${fluxData.personnes[0].civilite || ''} ${fluxData.personnes[0].prenom || ''} ${fluxData.personnes[0].nom || ''}`.trim()
@@ -58,6 +62,12 @@ export default function HistoriqueDemande() {
           };
         });
         
+        historiqueItems.sort((a, b) => {
+          if (!a.date && !b.date) return 0;
+          if (!a.date) return 1;
+          if (!b.date) return -1;
+          return new Date(b.date).getTime() - new Date(a.date).getTime();
+        });
         setHistorique(historiqueItems);
         setFilteredHistorique(historiqueItems);
       } catch (err) {
