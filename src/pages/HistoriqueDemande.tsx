@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { fluxService } from '../services/fluxService';
 import type { Flux, Tarif } from '../models';
 import Pagination from '../components/Pagination';
+import { environment } from '../config/environment';
 
 interface HistoriqueItem {
   id: string | number;
@@ -29,17 +30,16 @@ export default function HistoriqueDemande() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   useEffect(() => {
-    // Charger l'historique depuis l'API
+
     const loadHistorique = async () => {
       try {
         setLoading(true);
         setError(null);
         const fluxDataList = await fluxService.getAllFluxData();
         console.log('FluxData:', fluxDataList);
-        // Transformer les données de l'API en format HistoriqueItem
+
         const historiqueItems: HistoriqueItem[] = fluxDataList.map((fluxData) => {
-          // Le backend renvoie typeAssurance (camelCase) mais le modèle TS attend type_assurance (snake_case)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
           const rawTA = (fluxData as any).typeAssurance ?? fluxData.type_assurance;
           const type_assurance =
             rawTA?.typeAssurance || rawTA?.type_assurance ||
@@ -141,7 +141,7 @@ export default function HistoriqueDemande() {
   // };
 
   return (
-    <div className="max-w-xl 2xl:max-w-[100%] mx-auto space-y-8">
+    <div className="max-w-6xl xl:max-w-full mx-auto space-y-8">
       <section className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-sm">
         <div className="flex justify-between items-center mb-6">
           <div>
@@ -604,9 +604,9 @@ export default function HistoriqueDemande() {
                               {tarif.execution ? 'Oui' : 'Non'}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[#0d121b] dark:text-gray-200">
-                              {tarif.capture_img_path ? (
+                              {(tarif.captureImgPath || tarif.captureImgErreurPath) ? (
                                 <button
-                                  onClick={() => setSelectedImage(tarif.capture_img_path || null)}
+                                  onClick={() => setSelectedImage(`${environment.baseURL}search/tarifs/${tarif.id}/image`)}
                                   className="text-primary hover:text-blue-600 transition-colors"
                                   title="Voir l'aperçu"
                                 >

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Tarif } from '../models';
+import { environment } from '../config/environment';
 
 interface SearchResultsProps {
   results: Tarif[];
@@ -17,9 +18,11 @@ export default function SearchResults({ results }: SearchResultsProps) {
     );
   }
 
-  const showDialog = (captureImg: string | null | undefined) => {
-    if (captureImg) {
-      setSelectedImage(`data:image/png;base64,${captureImg}`);
+  // L'image n'est chargée qu'au clic (elle n'est plus embarquée en base64
+  // dans la réponse de recherche, ce qui rendait le payload trop volumineux).
+  const showDialog = (tarifId: number | null | undefined) => {
+    if (tarifId != null) {
+      setSelectedImage(`${environment.baseURL}search/tarifs/${tarifId}/image`);
       setIsModalOpen(true);
     }
   };
@@ -67,9 +70,9 @@ export default function SearchResults({ results }: SearchResultsProps) {
                   {result.typeAssurance?.typeAssurance || '-'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {result.captureImg && (
+                  {(result.captureImgPath || result.captureImgErreurPath) && (
                     <button
-                      onClick={() => showDialog(result.captureImg)}
+                      onClick={() => showDialog(result.id)}
                       className="text-blue-600 hover:text-blue-800"
                     >
                       <svg
