@@ -3,7 +3,7 @@ import type { TypeAssurance } from './TypeAssurance.ts';
 export interface Tarif {
   id?: number;
   nom?: string | null;
-  montant: string;
+  montant: string[];
   type_assurance?: TypeAssurance | null;
   execution: boolean;
   erreur?: string | null;

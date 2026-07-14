@@ -64,7 +64,7 @@ export default function SearchResults({ results }: SearchResultsProps) {
                   {result.nom}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {result.montant}
+                  {result.montant?.length ? result.montant.join(', ') : '-'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                   {result.typeAssurance?.typeAssurance || '-'}

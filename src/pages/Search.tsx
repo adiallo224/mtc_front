@@ -64,7 +64,8 @@ export default function Search() {
         nationalite: Nationalite.France,
         statut_profession: ListeStatutProfession.AUCUN_SECTEUR_ACTIVITE,
         profession_specifique: '',
-        profession: ''
+        profession: '',
+        auto_entrepreneur: false
       }]
     }
   });
@@ -198,7 +199,8 @@ export default function Search() {
             nationalite:         p.nationalite         || Nationalite.France,
             statut_profession:   p.statut_profession   || p.statutProfession   || '',
             profession_specifique: p.profession_specifique || p.professionSpecifique || '',
-            profession:          p.profession          || ''
+            profession:          p.profession          || '',
+            auto_entrepreneur:   p.auto_entrepreneur   ?? p.autoEntrepreneur   ?? false
           }));
           assureForm.reset({ assures: personnesNorm });
 
@@ -650,7 +652,8 @@ export default function Search() {
                   nationalite: Nationalite.France,
                   statut_profession: ListeStatutProfession.AUCUN_SECTEUR_ACTIVITE,
                   profession_specifique: '',
-                  profession: ''
+                  profession: '',
+                  auto_entrepreneur: false
                 };
                 addAssure(nouvelAssure);
                 addInfoAssureComplet({
@@ -951,6 +954,20 @@ export default function Search() {
                     ))}
                   </select>
                 </div>
+
+                {assureForm.watch(`assures.${index}.regime` as const) === Regime.TNS && (
+                  <div className="flex items-center">
+                    <input
+                      {...assureForm.register(`assures.${index}.auto_entrepreneur` as const)}
+                      id={`auto-entrepreneur-${index}`}
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                    />
+                    <label className="ml-2 block text-sm font-medium text-gray-700 dark:text-gray-300" htmlFor={`auto-entrepreneur-${index}`}>
+                      Auto-entrepreneur (micro-BIC / micro-BNC)
+                    </label>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor={`profession-${index}`}>

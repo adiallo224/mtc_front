@@ -19,6 +19,9 @@ export const fluxService = {
   getAllFluxData: async (): Promise<FluxData[]> => {
     const response = await axios.get<FluxData[]>(`${baseURL}fluxdata`);
     return response.data;
+  },
+  deleteFluxData: async (id: string | number): Promise<void> => {
+    await axios.delete(`${baseURL}fluxdata/${id}`);
   }
 };
 

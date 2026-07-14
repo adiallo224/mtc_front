@@ -4,6 +4,8 @@ import { compteService } from '../services/compteService';
 import type { Compte } from '../models';
 import { TypeAssuranceEnum, ListeFournisseurs } from '../enums';
 import Pagination from '../components/Pagination';
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import DataTable, { type DataTableColumn } from '../components/DataTable';
 
 interface CompteFormData {
   identifiant: string;
@@ -28,6 +30,11 @@ export default function Parametrage() {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [showPassword, setShowPassword] = useState(false);
   const [ordreError, setOrdreError] = useState<string | null>(null);
+  const [comptesToDelete, setComptesToDelete] = useState<Compte[]>([]);
+  const [deletingCompte, setDeletingCompte] = useState(false);
+  const [selectedCompteIds, setSelectedCompteIds] = useState<Set<string | number>>(new Set());
+
+  const compteKey = (compte: Compte): string | number => compte.id ?? `${compte.nomFournisseur}-${compte.username}`;
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<CompteFormData>({
     defaultValues: {
@@ -207,21 +214,176 @@ export default function Parametrage() {
     }
   };
 
-  const deleteCompte = async (compte: Compte) => {
+  const deleteCompte = (compte: Compte) => {
     if (!compte.id) {
       console.error('ID is undefined');
       return;
     }
+    setComptesToDelete([compte]);
+  };
 
-    if (window.confirm(`Êtes-vous sûr de vouloir supprimer le compte ${compte.nomFournisseur} ?`)) {
-      try {
-        await compteService.deleteCompte(compte.id);
-        await getAllComptes();
-      } catch (error) {
-        console.error('Erreur lors de la suppression:', error);
-      }
+  const handleBulkDeleteComptes = () => {
+    const items = comptes.filter(compte => selectedCompteIds.has(compteKey(compte)));
+    if (items.length > 0) {
+      setComptesToDelete(items);
     }
   };
+
+  const confirmDeleteCompte = async () => {
+    if (comptesToDelete.length === 0) return;
+    setDeletingCompte(true);
+    try {
+      const keysToDelete = new Set(comptesToDelete.map(compteKey));
+      await Promise.all(
+        comptesToDelete
+          .filter((compte): compte is Compte & { id: number } => !!compte.id)
+          .map(compte => compteService.deleteCompte(compte.id))
+      );
+      await getAllComptes();
+      setSelectedCompteIds(prev => {
+        const next = new Set(prev);
+        keysToDelete.forEach(key => next.delete(key));
+        return next;
+      });
+      setComptesToDelete([]);
+    } catch (error) {
+      console.error('Erreur lors de la suppression:', error);
+      alert('La suppression a échoué. Veuillez réessayer.');
+    } finally {
+      setDeletingCompte(false);
+    }
+  };
+
+  const toggleCompteRow = (key: string | number) => {
+    setSelectedCompteIds(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
+  const toggleAllComptes = () => {
+    setSelectedCompteIds(prev => {
+      const allSelected = paginatedComptes.length > 0 && paginatedComptes.every(compte => prev.has(compteKey(compte)));
+      const next = new Set(prev);
+      if (allSelected) {
+        paginatedComptes.forEach(compte => next.delete(compteKey(compte)));
+      } else {
+        paginatedComptes.forEach(compte => next.add(compteKey(compte)));
+      }
+      return next;
+    });
+  };
+
+  const compteHeaderClass = 'px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider';
+  const compteCellClass = 'px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100';
+
+  const columns: DataTableColumn<Compte>[] = [
+    {
+      key: 'fournisseur',
+      header: 'Fournisseur',
+      headerClassName: compteHeaderClass,
+      cellClassName: compteCellClass,
+      render: (compte) => compte.nomFournisseur
+    },
+    {
+      key: 'identifiant',
+      header: 'Identifiant',
+      headerClassName: compteHeaderClass,
+      cellClassName: compteCellClass,
+      render: (compte) => compte.username
+    },
+    {
+      key: 'motDePasse',
+      header: 'Mot de passe',
+      headerClassName: compteHeaderClass,
+      cellClassName: compteCellClass,
+      render: (compte) => compte.password
+    },
+    {
+      key: 'url',
+      header: 'URL Fournisseur',
+      headerClassName: compteHeaderClass,
+      cellClassName: 'px-4 py-3 text-sm',
+      render: (compte) => (
+        <a
+          href={compte.urlFournisseur}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-600 hover:text-blue-800 dark:text-blue-400"
+          title={compte.urlFournisseur}
+        >
+          {getBaseUrl(compte.urlFournisseur)}...
+        </a>
+      )
+    },
+    {
+      key: 'typeAssurance',
+      header: 'Type Assurance',
+      headerClassName: compteHeaderClass,
+      cellClassName: compteCellClass,
+      render: (compte) => compte.typeAssurance
+    },
+    {
+      key: 'niveau',
+      header: 'Niveau',
+      headerClassName: compteHeaderClass,
+      cellClassName: compteCellClass,
+      render: (compte) => (compte.niveau !== null && compte.niveau !== undefined ? compte.niveau : '-')
+    },
+    {
+      key: 'ordre',
+      header: 'Ordre',
+      headerClassName: compteHeaderClass,
+      cellClassName: compteCellClass,
+      render: (compte) => (compte.ordre !== null && compte.ordre !== undefined ? compte.ordre : '-')
+    },
+    {
+      key: 'statut',
+      header: 'Statut',
+      headerClassName: compteHeaderClass,
+      cellClassName: compteCellClass,
+      render: (compte) => (
+        <div className="flex items-center justify-center">
+          <input
+            type="checkbox"
+            checked={compte.actif}
+            onChange={() => toggleCompteStatus(compte)}
+            className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer"
+            title={compte.actif ? 'Désactiver le compte' : 'Activer le compte'}
+          />
+        </div>
+      )
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      headerClassName: compteHeaderClass,
+      cellClassName: 'px-4 py-3 whitespace-nowrap text-sm font-medium',
+      render: (compte) => (
+        <div className="flex space-x-2">
+          <button
+            onClick={() => infoCompte(compte)}
+            className="text-blue-600 hover:text-blue-800 dark:text-blue-400"
+          >
+            Voir
+          </button>
+          {compte.id && (
+            <button
+              onClick={() => deleteCompte(compte)}
+              className="text-red-600 hover:text-red-800 dark:text-red-400"
+            >
+              Supprimer
+            </button>
+          )}
+        </div>
+      )
+    }
+  ];
 
   return (
     <div className="space-y-6">
@@ -281,94 +443,37 @@ export default function Parametrage() {
                 />
               )}
 
+              {/* Action groupée */}
+              {selectedCompteIds.size > 0 && (
+                <div className="mb-4 flex items-center justify-between bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg px-4 py-3">
+                  <p className="text-sm text-green-800 dark:text-green-200">
+                    {selectedCompteIds.size} compte{selectedCompteIds.size > 1 ? 's' : ''} sélectionné{selectedCompteIds.size > 1 ? 's' : ''}
+                  </p>
+                  <button
+                    onClick={handleBulkDeleteComptes}
+                    className="flex items-center space-x-1 text-red-600 hover:text-red-700 text-sm font-medium"
+                  >
+                    <span className="material-icons-outlined text-base">delete</span>
+                    <span>Supprimer la sélection</span>
+                  </button>
+                </div>
+              )}
+
               {loading ? (
                 <div className="flex justify-center items-center py-12">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
                 </div>
               ) : (
-                <>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                      <thead className="bg-gray-50 dark:bg-gray-700">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Fournisseur</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Identifiant</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Mot de passe</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">URL Fournisseur</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Type Assurance</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Niveau</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Ordre</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Statut</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                        {filteredComptes.length === 0 ? (
-                          <tr>
-                            <td colSpan={10} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
-                              Aucun compte trouvé.
-                            </td>
-                          </tr>
-                        ) : (
-                          paginatedComptes.map((compte, index) => (
-                            <tr key={compte.id || index} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">{compte.nomFournisseur}</td>
-                              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">{compte.username}</td>
-                              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">{compte.password}</td>
-                              <td className="px-4 py-3 text-sm">
-                                <a
-                                  href={compte.urlFournisseur}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-blue-600 hover:text-blue-800 dark:text-blue-400"
-                                  title={compte.urlFournisseur}
-                                >
-                                  {getBaseUrl(compte.urlFournisseur)}...
-                                </a>
-                              </td>
-                              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">{compte.typeAssurance}</td>
-                              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                                {compte.niveau !== null && compte.niveau !== undefined ? compte.niveau : '-'}
-                              </td>
-                              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                                {compte.ordre !== null && compte.ordre !== undefined ? compte.ordre : '-'}
-                              </td>
-                              <td className="px-4 py-3 whitespace-nowrap text-sm">
-                                <div className="flex items-center justify-center">
-                                  <input
-                                    type="checkbox"
-                                    checked={compte.actif}
-                                    onChange={() => toggleCompteStatus(compte)}
-                                    className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer"
-                                    title={compte.actif ? 'Désactiver le compte' : 'Activer le compte'}
-                                  />
-                                </div>
-                              </td>
-                              <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
-                                <div className="flex space-x-2">
-                                  <button
-                                    onClick={() => infoCompte(compte)}
-                                    className="text-blue-600 hover:text-blue-800 dark:text-blue-400"
-                                  >
-                                    Voir
-                                  </button>
-                                  {compte.id && (
-                                    <button
-                                      onClick={() => deleteCompte(compte)}
-                                      className="text-red-600 hover:text-red-800 dark:text-red-400"
-                                    >
-                                      Supprimer
-                                    </button>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                    </tbody>
-                  </table>
-                  </div>
-                </>
+                <DataTable
+                  columns={columns}
+                  data={paginatedComptes}
+                  keyExtractor={compteKey}
+                  emptyMessage="Aucun compte trouvé."
+                  selectable
+                  selectedKeys={selectedCompteIds}
+                  onToggleRow={toggleCompteRow}
+                  onToggleAll={toggleAllComptes}
+                />
               )}
             </div>
           </div>
@@ -572,6 +677,19 @@ export default function Parametrage() {
           </div>
         </div>
       )}
+
+      <ConfirmDeleteModal
+        isOpen={comptesToDelete.length > 0}
+        title={comptesToDelete.length > 1 ? 'Supprimer ces comptes ?' : 'Supprimer ce compte ?'}
+        message={
+          comptesToDelete.length > 1
+            ? `Cette action supprimera définitivement ${comptesToDelete.length} comptes. Cette action est irréversible.`
+            : `Cette action supprimera définitivement le compte ${comptesToDelete[0]?.nomFournisseur ?? ''}. Cette action est irréversible.`
+        }
+        loading={deletingCompte}
+        onCancel={() => setComptesToDelete([])}
+        onConfirm={confirmDeleteCompte}
+      />
     </div>
   );
 }

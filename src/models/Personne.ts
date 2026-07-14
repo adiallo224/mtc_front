@@ -16,5 +16,6 @@ export interface Personne {
   statut_profession: string;
   profession_specifique: string;
   profession: string;
+  auto_entrepreneur: boolean;
 }
 
