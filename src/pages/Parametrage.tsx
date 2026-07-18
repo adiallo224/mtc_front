@@ -298,13 +298,6 @@ export default function Parametrage() {
       render: (compte) => compte.username
     },
     {
-      key: 'motDePasse',
-      header: 'Mot de passe',
-      headerClassName: compteHeaderClass,
-      cellClassName: compteCellClass,
-      render: (compte) => compte.password
-    },
-    {
       key: 'url',
       header: 'URL Fournisseur',
       headerClassName: compteHeaderClass,

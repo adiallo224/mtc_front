@@ -6,6 +6,15 @@ interface SearchResultsProps {
   results: Tarif[];
 }
 
+// Le backend renvoie typeAssurance en camelCase (Jackson) alors que le modèle
+// TS est en snake_case ; on accepte les deux conventions comme dans HistoriqueDemande.tsx.
+const getTypeAssuranceLabel = (result: Tarif): string => {
+  const raw = result as any;
+  const ta = raw.typeAssurance ?? raw.type_assurance;
+  if (!ta) return '-';
+  return ta.typeAssurance ?? ta.type_assurance ?? '-';
+};
+
 export default function SearchResults({ results }: SearchResultsProps) {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -67,7 +76,7 @@ export default function SearchResults({ results }: SearchResultsProps) {
                   {result.montant?.length ? result.montant.join(', ') : '-'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {result.typeAssurance?.typeAssurance || '-'}
+                  {getTypeAssuranceLabel(result)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                   {(result.captureImgPath || result.captureImgErreurPath) && (

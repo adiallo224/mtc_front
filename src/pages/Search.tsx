@@ -182,7 +182,7 @@ export default function Search() {
 
         const rawPersonnes = flux.personnes ?? [];
         if (rawPersonnes.length > 0) {
-          const personnesNorm = rawPersonnes.map((p) => ({
+          const personnesNorm = rawPersonnes.map((p: any) => ({
             civilite:            p.civilite            || '',
             nom:                 p.nom                 || '',
             prenom:              p.prenom              || '',
@@ -206,14 +206,14 @@ export default function Search() {
 
           // Synchroniser professionValues pour que le <select> contrôlé affiche la bonne valeur
           const profVals: Record<number, string> = {};
-          personnesNorm.forEach((p, i) => { if (p.profession) profVals[i] = p.profession; });
+          personnesNorm.forEach((p: { profession?: string }, i: number) => { if (p.profession) profVals[i] = p.profession; });
           if (Object.keys(profVals).length > 0) setProfessionValues(profVals);
         }
 
         const rawIAC = flux.infoAssureComplets ?? flux.info_assure_complets ?? [];
         if (rawIAC.length > 0) {
           infoAssureCompletForm.reset({
-            personnesInfosComplements: rawIAC.map((iac) => ({
+            personnesInfosComplements: rawIAC.map((iac: any) => ({
               travail_manuel:             iac.travailManuel            ?? iac.travail_manuel            ?? false,
               travail_hauteur:            iac.travailHauteur           ?? iac.travail_hauteur           ?? false,
               travail_manuel_manu_lourde: iac.travailManuelManuLourde  ?? iac.travail_manuel_manu_lourde ?? false,
@@ -239,7 +239,7 @@ export default function Search() {
         const rawEnfants = flux.enfants ?? [];
         if (rawEnfants.length > 0) {
           infoFamilleForm.reset({
-            enfants: rawEnfants.map((e) => ({
+            enfants: rawEnfants.map((e: any) => ({
               civilite:       e.civilite       || '',
               nom:            e.nom            || '',
               prenom:         e.prenom         || '',
