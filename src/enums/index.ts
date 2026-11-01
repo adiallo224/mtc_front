@@ -11,6 +11,7 @@ export * from './TypeTaux';
 export * from './Nationalite';
 export * from './OptionsPret';
 export * from './ListeProfession';
+export * from './ListeProfessionPro';
 export * from './CategorieProfession';
 export * from './ListeFournisseurs';
 export * from './TypeAssuranceEnum';

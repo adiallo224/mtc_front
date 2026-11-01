@@ -5,7 +5,7 @@ import { locationService } from '../services/locationService';
 import { formatDate, formatTelephone, removeDashes, convertDateToInputFormat } from '../utils/validators';
 import type { Flux, Personne, Enfant, Entreprise, Pret, InfoAssureComplet, TypeAssurance, Tarif } from '../models';
 import { Civilite, Regime, ListeBanque, ListePays, ListeStatutProfession, ObjetPret, TypePret, Garantie, TypeDiffere,
-  TypeTaux, Nationalite, OptionsPret, ListeProfession, CategorieProfession } from '../enums';
+  TypeTaux, Nationalite, OptionsPret, ListeProfession, ListeProfessionPro, CategorieProfession } from '../enums';
 import SearchResults from '../components/SearchResults';
 
 interface Step {
@@ -990,7 +990,10 @@ export default function Search() {
                         className="w-full rounded border-gray-300 shadow-sm focus:border-primary focus:ring-primary dark:bg-gray-700 dark:border-gray-600"
                       >
                         <option value="">Sélectionnez une profession</option>
-                        {Object.values(ListeProfession).map((lPro) => (
+                        {(selectedType === 'MUTUELLE_PRO'
+                          ? [ListeProfession.AUCUN_RESULTAT, ...ListeProfessionPro]
+                          : Object.values(ListeProfession)
+                        ).map((lPro) => (
                           <option key={lPro} value={lPro}>
                             {lPro}
                           </option>
