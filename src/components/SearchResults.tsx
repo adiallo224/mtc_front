@@ -1,9 +1,19 @@
 import { useState } from 'react';
 import type { Tarif } from '../models';
+import { environment } from '../config/environment';
 
 interface SearchResultsProps {
   results: Tarif[];
 }
+
+// Le backend renvoie typeAssurance en camelCase (Jackson) alors que le modèle
+// TS est en snake_case ; on accepte les deux conventions comme dans HistoriqueDemande.tsx.
+const getTypeAssuranceLabel = (result: Tarif): string => {
+  const raw = result as any;
+  const ta = raw.typeAssurance ?? raw.type_assurance;
+  if (!ta) return '-';
+  return ta.typeAssurance ?? ta.type_assurance ?? '-';
+};
 
 export default function SearchResults({ results }: SearchResultsProps) {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -17,9 +27,11 @@ export default function SearchResults({ results }: SearchResultsProps) {
     );
   }
 
-  const showDialog = (captureImg: string | null | undefined) => {
-    if (captureImg) {
-      setSelectedImage(`data:image/png;base64,${captureImg}`);
+  // L'image n'est chargée qu'au clic (elle n'est plus embarquée en base64
+  // dans la réponse de recherche, ce qui rendait le payload trop volumineux).
+  const showDialog = (tarifId: number | null | undefined) => {
+    if (tarifId != null) {
+      setSelectedImage(`${environment.baseURL}search/tarifs/${tarifId}/image`);
       setIsModalOpen(true);
     }
   };
@@ -61,15 +73,15 @@ export default function SearchResults({ results }: SearchResultsProps) {
                   {result.nom}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {result.montant}
+                  {result.montant?.length ? result.montant.join(', ') : '-'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {result.typeAssurance?.typeAssurance || '-'}
+                  {getTypeAssuranceLabel(result)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {result.captureImg && (
+                  {(result.captureImgPath || result.captureImgErreurPath) && (
                     <button
-                      onClick={() => showDialog(result.captureImg)}
+                      onClick={() => showDialog(result.id)}
                       className="text-blue-600 hover:text-blue-800"
                     >
                       <svg

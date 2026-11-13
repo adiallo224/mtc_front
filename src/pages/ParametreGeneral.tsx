@@ -63,6 +63,16 @@ export default function ParametreGeneral() {
     }
   };
 
+  const handleNavigateurPlaywrightChange = (value: string) => {
+    if (parametrageGeneraux[0]) {
+      setParametrageGeneraux([{
+        ...parametrageGeneraux[0],
+        navigateur_playwright: value
+      }]);
+      onFieldChanged();
+    }
+  };
+
   const handleHeurePurgeChange = (value: string) => {
     setHeurePurge(value);
     if (parametrageGeneraux[0]) {
@@ -187,6 +197,26 @@ export default function ParametreGeneral() {
                     onChange={(e) => handleModeRechercheChange(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
                   />
+                </td>
+              </tr>
+              <tr>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
+                  Navigateur Playwright
+                </td>
+                <td className="px-6 py-4">
+                  <select
+                    value={parametrageGeneraux[0].navigateur_playwright || ''}
+                    onChange={(e) => handleNavigateurPlaywrightChange(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+                  >
+                    <option value="PLAYWRIGHT_CHROMIUM">Chromium (défaut)</option>
+                    <option value="PLAYWRIGHT_CHROME">Chrome</option>
+                    <option value="PLAYWRIGHT_FIREFOX">Firefox</option>
+                    <option value="PLAYWRIGHT_EDGE">Microsoft Edge</option>
+                  </select>
+                  <p className="text-gray-500 text-xs mt-1">
+                    Navigateur utilisé par les services Playwright lors des recherches.
+                  </p>
                 </td>
               </tr>
             </tbody>

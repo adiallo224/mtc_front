@@ -5,5 +5,6 @@ export interface ParametrageGeneral {
   mode_recherche: string;
   heure_purge: string;
   nb_jours: number;
+  navigateur_playwright?: string;
 }
 

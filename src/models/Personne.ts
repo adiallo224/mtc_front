@@ -6,7 +6,7 @@ export interface Personne {
   date_naissance: string;
   email: string;
   telephone: string;
-  numero_voie: undefined;
+  numero_voie?: number;
   nom_voie: string;
   code_postal: string;
   ville: string;
@@ -16,5 +16,6 @@ export interface Personne {
   statut_profession: string;
   profession_specifique: string;
   profession: string;
+  auto_entrepreneur: boolean;
 }
 

@@ -9,7 +9,7 @@ import Profile from './pages/Profile';
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/mutual-conseil">
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/principal" element={<Principal />}>
